@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <!-- 모바일 화면 비율을 아이폰처럼 맞춤 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>UX Research Demo</title>
+
+  <style>
+    /* =========================
+       기본 화면 설정
+    ========================== */
+    body{
+      margin:0;
+      background:#f2f2f7;
+      font-family:-apple-system, BlinkMacSystemFont;
+    }
+
+    /* 앱 전체 프레임 (아이폰 폭) */
+    .app{
+      max-width:390px;
+      min-height:100vh;
+      margin:auto;
+      background:#fff;
+      position:relative;
+      overflow:hidden;
+    }
+
+    /* =========================
+       화면 전환 공통
+    ========================== */
+    .screen{
+      display:none;
+      padding:24px;
+    }
+    .screen.active{
+      display:block;
+      animation:fadeIn .25s ease;
+    }
+    @keyframes fadeIn{
+      from{opacity:0}
+      to{opacity:1}
+    }
+
+    /* =========================
+       로그인 입력 UI
+    ========================== */
+    h2{margin-bottom:16px}
+
+    input{
+      width:100%;
+      padding:14px;
+      margin:8px 0;
+      border-radius:12px;
+      border:1px solid #ccc;
+      font-size:15px;
+    }
+    input:focus{
+      outline:none;
+      border-color:#007aff;
+      box-shadow:0 0 0 3px rgba(0,122,255,.15);
+    }
+
+    button{
+      width:100%;
+      padding:14px;
+      margin-top:12px;
+      border:none;
+      border-radius:14px;
+      background:#007aff;
+      color:#fff;
+      font-size:16px;
+    }
+    button:active{
+      transform:scale(.98);
+    }
+
+    /* =========================
+       중앙 안내 화면
+    ========================== */
+    .center{
+      text-align:center;
+      padding-top:140px;
+      color:#555;
+      font-size:17px;
+    }
+
+    /* =========================
+       카드 영역
+    ========================== */
+    .card-container{
+      perspective:1200px;
+    }
+    .card-inner{
+      position:relative;
+      width:100%;
+      height:520px;
+      transform-style:preserve-3d;
+      transition:transform .65s cubic-bezier(.2,.8,.2,1);
+    }
+    .card-inner.flipped{
+      transform:rotateY(180deg);
+    }
+
+    .card-face{
+      position:absolute;
+      inset:0;
+      backface-visibility:hidden;
+      background:linear-gradient(180deg,#f7f8fc,#eef0f6);
+      border-radius:20px;
+      padding:22px;
+      box-shadow:0 12px 30px rgba(0,0,0,.08);
+    }
+    .card-back{
+      transform:rotateY(180deg);
+    }
+
+    /* =========================
+       사진 로딩
+    ========================== */
+    .photo-wrap{
+      width:96px;
+      height:120px;
+      position:relative;
+      margin:18px 0;
+    }
+    .photo{
+      width:96px;
+      height:120px;
+      border-radius:10px;
+      object-fit:cover;
+      opacity:0;
+      transition:.3s;
+    }
+    .photo.show{opacity:1}
+
+    .photo-loading{
+      position:absolute;
+      inset:0;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      background:rgba(240,240,245,.8);
+      border-radius:10px;
+    }
+    .spinner{
+      width:22px;
+      height:22px;
+      border:3px solid #ddd;
+      border-top:3px solid #666;
+      border-radius:50%;
+      animation:spin 1s linear infinite;
+    }
+    @keyframes spin{
+      to{transform:rotate(360deg)}
+    }
+
+    /* =========================
+       텍스트 스타일
+    ========================== */
+    .label{
+      font-size:11px;
+      color:#777;
+      margin-top:10px;
+    }
+    .value{
+      font-size:16px;
+      font-weight:600;
+      color:#111;
+    }
+
+    /* =========================
+       DEMO 워터마크 (거의 안 보임)
+       - 제거 금지
+       - 항상 존재
+    ========================== */
+    .watermark{
+      position:absolute;
+      bottom:10px;
+      width:100%;
+      text-align:center;
+      font-size:8px;
+      letter-spacing:1px;
+      font-weight:600;
+      color:rgba(0,0,0,.08);
+      opacity:.14;
+      filter:blur(1.1px);
+      mix-blend-mode:multiply;
+      pointer-events:none;
+      user-select:none;
+      animation:markFade .35s ease-out;
+    }
+    @keyframes markFade{
+      from{opacity:.28}
+      to{opacity:.14}
+    }
+  </style>
+</head>
+
+<body>
+<div class="app">
+
+  <!-- =========================
+       로그인 화면
+  ========================== -->
+  <div id="login" class="screen active">
+    <h2>Demo Login</h2>
+
+    <input id="nameInput" placeholder="이름">
+    <input id="birthInput" placeholder="생년월일">
+    <input id="addrInput" placeholder="주소">
+
+    <input type="file" id="photoInput" accept="image/*">
+
+    <!-- 카드 뒤면 정보 -->
+    <input id="issueInput" placeholder="발급일">
+    <input id="idInput" placeholder="카드 ID">
+    <input id="noteInput" placeholder="안내 문구">
+
+    <button onclick="startFlow()">로그인</button>
+  </div>
+
+  <!-- 인증(연출) -->
+  <div id="verify" class="screen center">
+    Authenticating…<br>
+    <small>(Simulation)</small>
+  </div>
+
+  <!-- 로딩 -->
+  <div id="loading" class="screen center">
+    Loading…
+  </div>
+
+  <!-- =========================
+       카드 화면
+  ========================== -->
+  <div id="card" class="screen">
+    <div class="card-container" onclick="flipCard()">
+      <div class="card-inner" id="cardInner">
+
+        <!-- 앞면 -->
+        <div class="card-face">
+          <div class="photo-wrap">
+            <div class="photo-loading" id="photoLoading">
+              <div class="spinner"></div>
+            </div>
+            <img id="photo" class="photo">
+          </div>
+
+          <div class="label">이름</div>
+          <div id="outName" class="value"></div>
+
+          <div class="label">생년월일</div>
+          <div id="outBirth" class="value"></div>
+
+          <div class="label">주소</div>
+          <div id="outAddr" class="value"></div>
+
+          <div class="watermark">DEMO · UX RESEARCH PROTOTYPE</div>
+        </div>
+
+        <!-- 뒷면 -->
+        <div class="card-face card-back">
+          <div class="label">발급일</div>
+          <div id="outIssue" class="value"></div>
+
+          <div class="label">Card ID</div>
+          <div id="outId" class="value"></div>
+
+          <div class="label">안내</div>
+          <div id="outNote" class="value"></div>
+
+          <div class="watermark">DEMO · UX RESEARCH PROTOTYPE</div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  /* =========================
+     사용자 입력값 저장용 객체
+  ========================== */
+  let userData = {};
+
+  /* 화면 전환 함수 */
+  function showScreen(id){
+    document.querySelectorAll('.screen')
+      .forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+  }
+
+  /* 로그인 → 인증 → 로딩 → 카드 */
+  function startFlow(){
+    userData.name  = nameInput.value;
+    userData.birth= birthInput.value;
+    userData.addr = addrInput.value;
+    userData.issue= issueInput.value;
+    userData.id   = idInput.value;
+    userData.note = noteInput.value;
+    userData.photo= photoInput.files[0];
+
+    showScreen('verify');
+
+    const delay = 1100 + Math.random()*300;
+    setTimeout(() => showScreen('loading'), delay);
+    setTimeout(showCard, delay + 900);
+  }
+
+  /* 카드 데이터 출력 */
+  function showCard(){
+    outName.textContent  = userData.name;
+    outBirth.textContent= userData.birth;
+    outAddr.textContent = userData.addr;
+    outIssue.textContent= userData.issue;
+    outId.textContent   = userData.id;
+    outNote.textContent = userData.note;
+
+    if(userData.photo){
+      const reader = new FileReader();
+      reader.onload = () => {
+        photo.onload = () => {
+          photoLoading.style.display = 'none';
+          photo.classList.add('show');
+        };
+        photo.src = reader.result;
+      };
+      reader.readAsDataURL(userData.photo);
+    }else{
+      photoLoading.style.display='none';
+    }
+
+    showScreen('card');
+  }
+
+  /* 카드 앞/뒤 전환 */
+  function flipCard(){
+    cardInner.classList.toggle('flipped');
+  }
+</script>
+
+</body>
+</html>
